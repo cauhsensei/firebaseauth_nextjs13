@@ -16,8 +16,8 @@ O projeto permite que diferentes tipos de usuários (como "empresa" e "usuário"
 ### 1. Clone este repositório
 
 \```bash
-git clone [link do repositório]
-cd [nome do diretório]
+git clone https://github.com/cauhsensei/firebaseauth_nextjs13.git
+cd firebaseauth_nextjs13
 \```
 
 ### 2. Instale as dependências

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db, auth } from '@/firebase/firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDoc, doc, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 export default function useAuthentication() {
@@ -22,25 +22,28 @@ export default function useAuthentication() {
         }
     }, []);
 
-    const register = async (userData) => {
+    // Adicione essa nova função no seu hook useAuthentication
+
+    const registerCompany = async (companyData) => {
         setLoading(true);
-
+    
+        // Gerar uma senha aleatória. Certifique-se de adequar às políticas de senha do Firebase.
+        const randomPassword = Math.random().toString(36).slice(-8);
+    
         try {
-        
-            const authResult = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+            const authResult = await createUserWithEmailAndPassword(auth, companyData.email, randomPassword);
             
-            
-            await addDoc(collection(db, 'users'), {
-                username: userData.name,
-                email: userData.email,
-                isCompany: userData.isCompany
+            await setDoc(doc(db, 'users', authResult.user.uid), {
+                uid: authResult.user.uid,
+                email: companyData.email,
+                nome: companyData.nome,
+                fantasia: companyData.fantasia,
+                telefone: companyData.telefone,
+                atividadePrincipal: companyData.atividadePrincipal,
+                situacao: companyData.situacao,
+                isCompany: true
             });
-
-            const token = await authResult.user.getIdToken();
-            sessionStorage.setItem('token', token);
-            sessionStorage.setItem('userType', userData.isCompany ? 'company' : 'user');
-            setUser({ token: token, type: userData.isCompany ? 'company' : 'user' });
-
+    
             setLoading(false);
             return { user: authResult.user };
         } catch (err) {
@@ -49,17 +52,57 @@ export default function useAuthentication() {
             throw err;
         }
     };
+    
+
+    const register = async (userData) => {
+        setLoading(true);
+        const randomPassword = Math.random().toString(36).slice(-8);
+    
+        try {
+            const authResult = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+            
+            await setDoc(doc(db, 'users', authResult.user.uid), {
+                uid: authResult.user.uid,
+                username: userData.name,
+                email: userData.email,
+                isCompany: userData.isCompany
+            });
+    
+            const token = await authResult.user.getIdToken();
+            sessionStorage.setItem('token', token);
+            sessionStorage.setItem('userType', userData.isCompany ? 'company' : 'user');
+            setUser({ token: token, type: userData.isCompany ? 'company' : 'user' });
+    
+            setLoading(false);
+            return { user: authResult.user };
+        } catch (err) {
+            setError(err.message);
+            setLoading(false);
+            throw err;
+        }
+    };
+    
 
     const login = async (credentials) => {
         setLoading(true);
         try {
             const authResult = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
             const token = await authResult.user.getIdToken();
-            
+    
+            console.log("UID:", authResult.user.uid); 
+    
+            const userDoc = await getDoc(doc(db, 'users', authResult.user.uid));
+    
+            if (!userDoc.exists()) { 
+                throw new Error("Documento de usuário não encontrado");
+            }
+    
+            const isCompany = userDoc.data().isCompany;
+    
             sessionStorage.setItem('token', token);
-            sessionStorage.setItem('userType', credentials.isCompany ? 'company' : 'user');
-            setUser({ token: token, type: credentials.isCompany ? 'company' : 'user' });
-
+            sessionStorage.setItem('userType', isCompany ? 'company' : 'user');
+            setUser({ token: token, type: isCompany ? 'company' : 'user' });
+    
             setLoading(false);
             return { user: authResult.user };
         } catch (err) {
@@ -68,6 +111,7 @@ export default function useAuthentication() {
             throw err;
         }
     };
+    
 
     const logout = () => {
         sessionStorage.removeItem('token');
@@ -81,6 +125,7 @@ export default function useAuthentication() {
         register,
         login,
         logout,
+        registerCompany,
         loading,
         error
     };
